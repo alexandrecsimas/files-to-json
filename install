@@ -6,15 +6,15 @@ case $current_shell in
     "bash") config_file="$HOME/.bashrc" ;;
     "zsh") config_file="$HOME/.zshrc" ;;
     *)
-        echo "❌&nbsp;Shell não suportado: $current_shell"
+        echo "❌ Shell não suportado: $current_shell"
         exit 1
         ;;
 esac
 
 ## 📌 Passo 2: Verificar se o arquivo de configuração existe
 if [ ! -f "$config_file" ]; then
-    echo "⚠️&nbsp;Arquivo de configuração não encontrado: $config_file"
-    echo "👉&nbsp;Criando novo arquivo..."
+    echo "⚠️ Arquivo de configuração não encontrado: $config_file"
+    echo "👉 Criando novo arquivo..."
     touch "$config_file"
 fi
 
@@ -23,12 +23,12 @@ script_path="$(pwd)/f2j"
 
 ## 📌 Passo 4: Verificar se o source já está configurado (qualquer caminho para f2j)
 if grep -q "source .*f2j" "$config_file"; then
-    echo "☑️&nbsp;A função já está configurada em $config_file"
+    echo "☑️ A função já está configurada em $config_file"
     echo "   Nada a fazer. Tudo atualizado! 🚀"
 else
     echo "🔧 Adicionando fonte do script ao $config_file"
     echo -e "\n# Função files-to-json (f2j - adicionado automaticamente)" >> "$config_file"
     echo "source $script_path" >> "$config_file"
-    echo "✅&nbsp;Configuração atualizada! Por favor reinicie o terminal ou execute:"
+    echo "✅ Configuração atualizada! Por favor reinicie o terminal ou execute:"
     echo "   source $config_file"
 fi
