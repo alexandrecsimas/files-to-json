@@ -23,7 +23,7 @@ script_path="$(pwd)/f2j"
 
 ## 📌 Passo 4: Verificar se o source já está configurado (qualquer caminho para f2j)
 if grep -q "source .*f2j" "$config_file"; then
-    echo "☑️ A função já está configurada em $config_file"
+    echo "☑️  A função já está configurada em $config_file"
     echo "   Nada a fazer. Tudo atualizado! 🚀"
 else
     echo "🔧 Adicionando fonte do script ao $config_file"
