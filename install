@@ -1,0 +1,34 @@
+#!/bin/bash
+
+## 📌 Passo 1: Identificar o shell atual e arquivo de configuração
+current_shell=$(basename "$SHELL")
+case $current_shell in
+    "bash") config_file="$HOME/.bashrc" ;;
+    "zsh") config_file="$HOME/.zshrc" ;;
+    *)
+        echo "❌ Shell não suportado: $current_shell"
+        exit 1
+        ;;
+esac
+
+## 📌 Passo 2: Verificar se o arquivo de configuração existe
+if [ ! -f "$config_file" ]; then
+    echo "⚠️  Arquivo de configuração não encontrado: $config_file"
+    echo "👉 Criando novo arquivo..."
+    touch "$config_file"
+fi
+
+## 📌 Passo 3: Gerar caminho absoluto do f2j.sh
+script_path="$(pwd)/f2j.sh"
+
+## 📌 Passo 4: Verificar se o source já está configurado
+if ! grep -q "source $script_path" "$config_file"; then
+    echo "🔧 Adicionando fonte do script ao $config_file"
+    echo -e "\n# Função files-to-json (f2j - adicionado automaticamente)" >> "$config_file"
+    echo "source $script_path" >> "$config_file"
+    echo "✅ Configuração atualizada! Por favor reinicie o terminal ou execute:"
+    echo "   source $config_file"
+else
+    echo "✅ A função já está configurada em $config_file"
+    echo "   Nada a fazer. Tudo atualizado! 🚀"
+fi

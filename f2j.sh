@@ -1,7 +1,7 @@
-function files_to_json() {
+function f2j() {
     if [[ $# -eq 0 ]]; then
-        echo "Uso: files_to_json <padrão1> <padrão2> ..."
-        echo "Ex: files_to_json *.sh docker/*.conf"
+        echo "Uso: f2j <padrão1> <padrão2> ..."
+        echo "Ex: f2j *.sh docker/*.conf"
         return 1
     fi
 
