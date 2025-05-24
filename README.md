@@ -15,10 +15,11 @@ A criação deste projeto foi motivada pela necessidade de facilitar a vida das 
 Clone o repositório:
 
 ```shell
-
 git clone --depth 1 https://github.com/alexandrecsimas/files-to-json.git ~/.f2j
 ~/.f2j
 chmod +x install f2j
+./install
+
 ````
 
 ### Método Automático (recomendado):
