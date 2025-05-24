@@ -18,17 +18,17 @@ if [ ! -f "$config_file" ]; then
     touch "$config_file"
 fi
 
-## 📌 Passo 3: Gerar caminho absoluto do f2j.sh
-script_path="$(pwd)/f2j.sh"
+## 📌 Passo 3: Gerar caminho absoluto do f2j
+script_path="$(pwd)/f2j"
 
-## 📌 Passo 4: Verificar se o source já está configurado
-if ! grep -q "source $script_path" "$config_file"; then
+## 📌 Passo 4: Verificar se o source já está configurado (qualquer caminho para f2j)
+if grep -q "source .*f2j" "$config_file"; then
+    echo "✅ A função já está configurada em $config_file"
+    echo "   Nada a fazer. Tudo atualizado! 🚀"
+else
     echo "🔧 Adicionando fonte do script ao $config_file"
     echo -e "\n# Função files-to-json (f2j - adicionado automaticamente)" >> "$config_file"
     echo "source $script_path" >> "$config_file"
     echo "✅ Configuração atualizada! Por favor reinicie o terminal ou execute:"
     echo "   source $config_file"
-else
-    echo "✅ A função já está configurada em $config_file"
-    echo "   Nada a fazer. Tudo atualizado! 🚀"
 fi
