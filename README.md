@@ -12,7 +12,7 @@ A criação deste projeto foi motivada pela necessidade de facilitar a vida das 
 
 ## 📦 Instalação
 
-Clone o repositório:
+Clone o repositório e instale automaticamente:
 
 ```shell
 git clone --depth 1 https://github.com/alexandrecsimas/files-to-json.git ~/.f2j
@@ -22,20 +22,10 @@ chmod +x install f2j
 
 ````
 
-### Método Automático (recomendado):
-
- Execute o script de instalação
+Se a instalação automática falhar, adicione manualmente ao seu shell:
 
 ```shell
-./install
-```
-
-### Método Manual:
-
-Adicione manualmente ao seu shell
-
-```shell
-echo 'source "$(pwd)/f2j.sh"' >> ~/.bashrc # ou ~/.zshrc
+echo 'source "$(pwd)/f2j"' >> ~/.bashrc # ou ~/.zshrc
 ```
 
 Instale as dependências necessárias (se houverem):
