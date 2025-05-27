@@ -1,40 +1,122 @@
 function f2j() {
+    local include_git=false
+    local include_ide=false
+    local include_laravel_ignore=false
+    local include_cache=false
+
+    # Processa flags
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -g|--include-git)
+                include_git=true
+                shift
+                ;;
+            -i|--include-ide)
+                include_ide=true
+                shift
+                ;;
+            -l|--include-laravel-ignore)
+                include_laravel_ignore=true
+                shift
+                ;;
+            -c|--include-cache)
+                include_cache=true
+                shift
+                ;;
+            --)
+                shift
+                break
+                ;;
+            -*)
+                echo "Opção inválida: $1" >&2
+                return 1
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
+
     if [[ $# -eq 0 ]]; then
-        echo "Uso: f2j <padrão1> <padrão2> ..."
-        echo "Ex: f2j *.sh docker/*.conf"
+        echo "Uso: f2j [-g] [-i] [-l] [-c] <padrão1> <padrão2> ..."
+        echo "Flags:"
+        echo "  -g  Inclui arquivos do Git"
+        echo "  -i  Inclui arquivos de IDE"
+        echo "  -l  Inclui arquivos ignorados pelo Laravel"
+        echo "  -c  Inclui arquivos de cache"
+        echo "Ex: f2j -g -l app/  # Inclui git e padrões Laravel, mas ignora cache e IDE"
         return 1
     fi
 
     local json_output=()
     local temp_file=$(mktemp)
+    local file_count=0
+    local find_opts=()
+
+    # Configura opções de exclusão
+    if ! $include_git; then
+        find_opts+=(! -path '*/.git/*' ! -name '.gitignore' ! -name '.gitmodules' ! -name '.gitattributes')
+    fi
+
+    if ! $include_ide; then
+        find_opts+=(! -path '*/.vscode/*' ! -path '*/.idea/*' ! -name '*.iml' ! -name '.project' ! -path '*/.settings/*')
+    fi
+
+    if ! $include_laravel_ignore; then
+        find_opts+=(
+            ! -path '*/node_modules/*'
+            ! -path '*/vendor/*'
+            ! -name '.env'
+            ! -path '*/.env.*'
+            ! -path '*/storage/*'
+            ! -path '*/bootstrap/cache/*'
+        )
+    fi
+
+    if ! $include_cache; then
+        find_opts+=(
+            ! -name '*.cache'
+            ! -path '*/.cache/*'
+            ! -name '*.tmp'
+            ! -name '*.temp'
+            ! -path '*/tmp/*'
+            ! -path '*/temp/*'
+            ! -name '*.log'
+            ! -path '*/logs/*'
+            ! -name 'session_*'
+            ! -name 'cache_*'
+            ! -name 'data_*'
+            ! -path '*/cache/*'
+            ! -name 'compiled.php'
+            ! -name 'services.php'
+        )
+    fi
 
     for pattern in "$@"; do
-        for file in $~pattern; do
-            if [[ -f "$file" ]]; then
-                # Verifica se o arquivo é texto (não binário)
-                if grep -Iq . "$file" 2>/dev/null; then
-                    # Processa o conteúdo com jq de forma mais segura
-                    if content=$(jq -Rs --arg path "$file" \
-                        '{path: $path, content: .}' < "$file" 2>/dev/null); then
-                        json_output+=("$content")
-                    else
-                        echo "Erro ao processar: $file (caracteres inválidos)" >&2
-                    fi
-                else
-                    echo "Ignorando arquivo binário: $file" >&2
+        if [[ -d "$pattern" ]]; then
+            while IFS= read -r -d '' file; do
+                process_file "$file"
+            done < <(find "$pattern" -type f "${find_opts[@]}" -print0)
+        else
+            for file in $~pattern; do
+                if [[ -f "$file" ]]; then
+                    process_file "$file"
                 fi
-            fi
-        done
+            done
+        fi
     done
 
-    if [[ ${#json_output[@]} -gt 0 ]]; then
-        # Concatena os JSONs corretamente
+    if [[ $file_count -gt 0 ]]; then
         printf '%s\n' "${json_output[@]}" | jq -s '.' > "$temp_file"
         if [[ $? -eq 0 ]]; then
             xclip -sel c < "$temp_file"
-            echo "\n🔖 Arquivos processados:"  # <--- NOVO
-            jq -r '.[].path' "$temp_file"   # <--- NOVO
-            echo "✅ ${#json_output[@]} arquivo(s) convertidos para JSON!"
+            echo -e "\n🔖 Todos os arquivos processados ($file_count):"
+            jq -r '.[].path' "$temp_file"
+            echo -e "\n✅ $file_count arquivo(s) convertidos para JSON!"
+            $include_git || echo "ℹ️ Arquivos do Git ignorados (use -g para incluir)"
+            $include_ide || echo "ℹ️ Arquivos de IDE ignorados (use -i para incluir)"
+            $include_laravel_ignore || echo "ℹ️ Padrões Laravel ignorados (use -l para incluir)"
+            $include_cache || echo "ℹ️ Arquivos de cache ignorados (use -c para incluir)"
         else
             echo "Erro ao gerar JSON final" >&2
             return 1
@@ -45,4 +127,34 @@ function f2j() {
     fi
 
     rm -f "$temp_file"
+}
+
+process_file() {
+    local file="$1"
+
+    # Verificações adicionais para padrões não cobertos pelo find
+    if ! $include_git && [[ "$file" =~ /.git/ || "$file" == .git* ]]; then
+        return
+    fi
+
+    if ! $include_ide && [[ "$file" =~ /.vscode/ || "$file" =~ /.idea/ || "$file" == *.iml || "$file" =~ /.settings/ ]]; then
+        return
+    fi
+
+    if ! $include_laravel_ignore && [[ "$file" =~ /(node_modules|vendor|storage|bootstrap/cache)/ || "$file" == .env* ]]; then
+        return
+    fi
+
+    if ! $include_cache && [[ "$file" =~ /(cache|tmp|temp|logs)/ || "$file" == *.cache || "$file" == *.log || "$file" == session_* ]]; then
+        return
+    fi
+
+    if [[ -f "$file" ]] && grep -Iq . "$file" 2>/dev/null; then
+        if content=$(jq -Rs --arg path "$file" '{path: $path, content: .}' < "$file" 2>/dev/null); then
+            json_output+=("$content")
+            ((file_count++))
+        else
+            echo "Erro ao processar: $file (caracteres inválidos)" >&2
+        fi
+    fi
 }

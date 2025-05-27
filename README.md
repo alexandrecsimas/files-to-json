@@ -10,19 +10,20 @@ O `files-to-json` é uma ferramenta que converte o conteúdo de arquivos em obje
 
 A criação deste projeto foi motivada pela necessidade de facilitar a vida das inteligências artificiais. Muitas vezes, nós, humanos, não relatamos com precisão o que fazemos. Esta função é capaz de fornecer o contexto do que estamos falando, permitindo que as IAs compreendam e nos corrijam quando necessário. Como sobrevivemos sem vocês, maravilhosas IAs? ❤️
 
-## 📦 Instalação
+## 📦 Instalação Automática
 
 Clone o repositório e instale automaticamente:
 
 ```shell
-git clone --depth 1 https://github.com/alexandrecsimas/files-to-json.git ~/.f2j && ~/.f2j/install
+git clone --depth 1 https://github.com/alexandrecsimas/files-to-json.git ~/.f2j
+~/.f2j/install
 ````
 
-Se a instalação automática falhar, adicione manualmente ao seu shell:
+## 🔧 Instalação Manual
 
 ```shell
 # cd ~/.f2j && chmod +x install f2j \
-echo 'source "$(pwd)/f2j"' >> ~/.bashrc # ou ~/.zshrc
+echo 'source ~/.f2j/f2j' >> ~/.bashrc # ou ~/.zshrc
 ```
 
 Instale as dependências necessárias (se houverem):
@@ -42,6 +43,9 @@ from f2j import f2j
 json_output = f2j('caminho/para/o/arquivo.txt')
 print(json_output)
 ```
+
+## 🔍 Mais Informações
+Confira as novidades [AQUI](docs/NEWS.md)
 
 ## 📄 Licença
 
