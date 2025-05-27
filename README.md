@@ -16,13 +16,15 @@ Clone o repositório e instale automaticamente:
 
 ```shell
 git clone --depth 1 https://github.com/alexandrecsimas/files-to-json.git ~/.f2j
+chmod +x ~/.f2j/install
 ~/.f2j/install
 ````
 
 ## 🔧 Instalação Manual
 
 ```shell
-# cd ~/.f2j && chmod +x install f2j \
+git clone --depth 1 https://github.com/alexandrecsimas/files-to-json.git ~/.f2j
+chmod +x ~/.f2j/install
 echo 'source ~/.f2j/f2j' >> ~/.bashrc # ou ~/.zshrc
 ```
 
@@ -45,7 +47,7 @@ print(json_output)
 ```
 
 ## 🔍 Mais Informações
-Confira as novidades [AQUI](docs/NEWS.md)
+Confira as novidades [AQUI](docs/NEWS.md)!
 
 ## 📄 Licença
 
