@@ -1,0 +1,6 @@
+# Frameworks
+.idea/
+
+# Links simbólicos para shell utilizado (ln - s)
+.zshrc 
+.bashrc
