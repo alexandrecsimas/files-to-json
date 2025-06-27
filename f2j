@@ -34,7 +34,7 @@ function f2j() {
         [infra]="Makefile Vagrantfile ansible/ monitoring/ nginx.conf apache2.conf postgresql.conf redis.conf ssl/ vault/"
         # [cloud]="terraform/"   # Comentado, mas disponível se necessário
         [ignorados]="storage/logs/ storage/framework/ vendor/ node_modules/ .git/ .idea/ *.log *.tmp *.swp"
-        [docker]="docker/"   # Tudo dentro de docker/, recursivamente
+        [docker]="docker/ ./docker-compose.yml ./docker-compose.yaml ./compose.yml ./compose.yaml docker-compose.*.yml docker-compose.*.yaml "   # Tudo dentro de docker/, recursivamente
         [all]="."   # Diretório atual
     )
 
