@@ -11,20 +11,20 @@ function f2j() {
 
     # Verificar dependências
     if ! command -v xclip &> /dev/null; then
-        echo -e "\033[1;31m❌ Erro: xclip não está instalado!\033[0m"
-        echo "Instale com:"
-        echo "  Ubuntu/Debian: sudo apt install xclip"
-        echo "  Fedora/RHEL: sudo dnf install xclip"
-        echo "  Arch: sudo pacman -S xclip"
+        echo -e "\033[1;31m❌ Erro: xclip não está instalado!\033[0m" >&2
+        echo "Instale com:" >&2
+        echo "  Ubuntu/Debian: sudo apt install xclip" >&2
+        echo "  Fedora/RHEL: sudo dnf install xclip" >&2
+        echo "  Arch: sudo pacman -S xclip" >&2
         return 1
     fi
 
     if ! command -v jq &> /dev/null; then
-        echo -e "\033[1;31m❌ Erro: jq não está instalado!\033[0m"
-        echo "Instale com:"
-        echo "  Ubuntu/Debian: sudo apt install jq"
-        echo "  Fedora/RHEL: sudo dnf install jq"
-        echo "  Arch: sudo pacman -S jq"
+        echo -e "\033[1;31m❌ Erro: jq não está instalado!\033[0m" >&2
+        echo "Instale com:" >&2
+        echo "  Ubuntu/Debian: sudo apt install jq" >&2
+        echo "  Fedora/RHEL: sudo dnf install jq" >&2
+        echo "  Arch: sudo pacman -S jq" >&2
         return 1
     fi
 
@@ -32,159 +32,216 @@ function f2j() {
     typeset -A blocos=(
         [laravel]="README.md .env config/ app/Http/Controllers/ app/Models/ resources/views/ routes/web.php routes/api.php database/migrations/ database/seeders/ composer.json package.json webpack.mix.js public/ routes/ tests/"
         [infra]="Makefile Vagrantfile ansible/ monitoring/ nginx.conf apache2.conf postgresql.conf redis.conf ssl/ vault/"
-        # [cloud]="terraform/"   # Comentado, mas disponível se necessário
         [ignorados]="storage/logs/ storage/framework/ vendor/ node_modules/ .git/ .idea/ *.log *.tmp *.swp"
-        [docker]="docker/ ./docker-compose.yml ./docker-compose.yaml ./compose.yml ./compose.yaml docker-compose.*.yml docker-compose.*.yaml "   # Tudo dentro de docker/, recursivamente
-        [all]="."   # Diretório atual
+        [docker]="docker/ ./docker-compose.yml ./docker-compose.yaml ./compose.yml ./compose.yaml docker-compose.*.yml docker-compose.*.yaml "
+        [all]="."
     )
 
     typeset -A arquivos_blocos=()
     local outros_arquivos=()
     local arquivos_todos=()
+    local goto_processamento_json=false
 
-    # Mensagem de ajuda
-    if (( $# == 0 )); then
-        echo -e "\n\033[1;34m🌀 f2j - Conversor de Arquivos para JSON\033[0m"
-        echo "Uso: f2j [blocos] [arquivos/padrões]"
-        echo -e "\n\033[1;36mBlocos Disponíveis:\033[0m"
+    # ====================================================
+    # LÓGICA 1: Processamento de STDIN (Pipe)
+    # ====================================================
+    if [ ! -t 0 ]; then
+        # -t 0 verifica se a entrada padrão não é um terminal (pipe)
+        local piped_files=()
 
-        # Listar blocos de acordo com o shell
-        if [ -n "$is_zsh" ]; then
-            for bloco in "${(@k)blocos}"; do
-                echo "  $bloco: ${blocos[$bloco]}"
-            done | sort
+        # Lê cada linha do pipe, que são os caminhos dos arquivos do 'tree'
+        while IFS= read -r filepath; do
+            # Limpeza básica e verifica se é um arquivo real
+            filepath=$(echo "$filepath" | sed 's/^[ \t]*//;s/[ \t]*$//')
+            if [ -f "$filepath" ]; then
+                piped_files+=("$filepath")
+            fi
+        done
+
+        if (( ${#piped_files[@]} > 0 )); then
+            arquivos_todos=("${piped_files[@]}")
+            goto_processamento_json=true
         else
-            for bloco in "${!blocos[@]}"; do
-                echo "  $bloco: ${blocos[$bloco]}"
-            done | sort
+            # Se a entrada for um pipe mas não houver arquivos, retorna erro
+            echo -e "\n\033[1;31m❌ Nenhum caminho de arquivo válido recebido via pipe!\033[0m" >&2
+            return 1
         fi
-
-        echo -e "\n\033[1;36mExemplos:\033[0m"
-        echo "  f2j laravel docker *.sh"
-        echo "  f2j infra Dockerfile"
-        echo "  f2j docker"
-        return 1
     fi
 
-    # Processamento de argumentos
-    for arg in "$@"; do
-        if [ -n "$is_zsh" ]; then
-            # No zsh: verificação correta de chaves
-            if [[ -v blocos[$arg] ]]; then
-                for caminho in ${=blocos[$arg]}; do
-                    if [ -d "$caminho" ]; then
-                        while IFS= read -r -d $'\0' arquivo; do
-                            if [ -z "${arquivos_blocos[$arg]}" ]; then
-                                arquivos_blocos[$arg]="$arquivo"
-                            else
-                                arquivos_blocos[$arg]+=$'\0'"$arquivo"
-                            fi
-                        done < <(find "$caminho" -type f -print0 2>/dev/null)
-                    elif [ -f "$caminho" ]; then
-                        if [ -z "${arquivos_blocos[$arg]}" ]; then
-                            arquivos_blocos[$arg]="$caminho"
-                        else
-                            arquivos_blocos[$arg]+=$'\0'"$caminho"
-                        fi
-                    fi
-                done
+    # ====================================================
+    # LÓGICA 2: Mensagem de ajuda e Processamento de Argumentos (se não houver pipe)
+    # ====================================================
+    if [[ "$goto_processamento_json" == "false" ]]; then
+        # Mensagem de ajuda
+        if (( $# == 0 )); then
+            echo -e "\n\033[1;34m🌀 f2j - Conversor de Arquivos para JSON\033[0m"
+            echo "Uso: f2j [blocos] [arquivos/padrões]"
+            echo -e "\n\033[1;36mBlocos Disponíveis:\033[0m"
+
+            # Listar blocos
+            if [ -n "$is_zsh" ]; then
+                for bloco in "${(@k)blocos}"; do
+                    echo "  $bloco: ${blocos[$bloco]}"
+                done | sort
+            else
+                for bloco in "${!blocos[@]}"; do
+                    echo "  $bloco: ${blocos[$bloco]}"
+                done | sort
             fi
-        else
-            # No bash
-            if [[ -n "${blocos[$arg]+_}" ]]; then
-                for caminho in ${blocos[$arg]}; do
-                    if [ -d "$caminho" ]; then
-                        while IFS= read -r -d $'\0' arquivo; do
-                            if [ -z "${arquivos_blocos[$arg]}" ]; then
-                                arquivos_blocos[$arg]="$arquivo"
-                            else
-                                arquivos_blocos[$arg]+=$'\0'"$arquivo"
-                            fi
-                        done < <(find "$caminho" -type f -print0 2>/dev/null)
-                    elif [ -f "$caminho" ]; then
-                        if [ -z "${arquivos_blocos[$arg]}" ]; then
-                            arquivos_blocos[$arg]="$caminho"
-                        else
-                            arquivos_blocos[$arg]+=$'\0'"$caminho"
-                        fi
-                    fi
-                done
-            fi
+
+            echo -e "\n\033[1;36mExemplos:\033[0m"
+            echo "  f2j laravel docker *.sh"
+            echo "  f2j infra Dockerfile"
+            echo "  f2j docker"
+            return 1
         fi
 
-        # Processa arquivo comum (para ambos shells)
-        for file in $arg; do
-            [ -f "$file" ] || continue
-            outros_arquivos+=("$file")
-        done
-    done
+        # Processamento de argumentos (blocos e arquivos)
+        for arg in "$@"; do
+            if [ -n "$is_zsh" ]; then
+                # No zsh: verificação de chaves e expansão forçada de array
+                if [[ -v blocos[$arg] ]]; then
+                    for caminho in ${=blocos[$arg]}; do
+                        # ... (Lógica de processamento de caminhos de diretório/arquivo - OK) ...
+                        if [ -d "$caminho" ]; then
+                            while IFS= read -r -d $'\00' arquivo; do
+                                if [ -z "${arquivos_blocos[$arg]}" ]; then
+                                    arquivos_blocos[$arg]="$arquivo"
+                                else
+                                    arquivos_blocos[$arg]+=$'\00'"$arquivo"
+                                fi
+                            done < <(find "$caminho" -type f -print0 2>/dev/null)
+                        elif [ -f "$caminho" ]; then
+                            if [ -z "${arquivos_blocos[$arg]}" ]; then
+                                arquivos_blocos[$arg]="$caminho"
+                            else
+                                arquivos_blocos[$arg]+=$'\00'"$caminho"
+                            fi
+                        fi
+                    done
+                fi
+            else
+                # No bash: verificação de chaves
+                if [[ -n "${blocos[$arg]+_}" ]]; then
+                    for caminho in ${blocos[$arg]}; do
+                        # ... (Lógica de processamento de caminhos de diretório/arquivo - OK) ...
+                        if [ -d "$caminho" ]; then
+                            while IFS= read -r -d $'\00' arquivo; do
+                                if [ -z "${arquivos_blocos[$arg]}" ]; then
+                                    arquivos_blocos[$arg]="$arquivo"
+                                else
+                                    arquivos_blocos[$arg]+=$'\00'"$arquivo"
+                                fi
+                            done < <(find "$caminho" -type f -print0 2>/dev/null)
+                        elif [ -f "$caminho" ]; then
+                            if [ -z "${arquivos_blocos[$arg]}" ]; then
+                                arquivos_blocos[$arg]="$caminho"
+                            else
+                                arquivos_blocos[$arg]+=$'\036'"$caminho" # Usando separador de registro (036) para bash
+                            fi
+                        fi
+                    done
+                fi
+            fi
 
-    # Coleta todos os arquivos
-    if [ -n "$is_zsh" ]; then
-        for bloco in "${(@k)arquivos_blocos}"; do
-            IFS=$'\0' read -r -A files_bloco <<< "${arquivos_blocos[$bloco]}"
-            arquivos_todos+=("${files_bloco[@]}")
+            # Processa arquivo comum (para ambos shells)
+            for file in $arg; do
+                [ -f "$file" ] || continue
+                outros_arquivos+=("$file")
+            done
         done
-    else
-        for bloco in "${!arquivos_blocos[@]}"; do
-            IFS=$'\0' read -r -a files_bloco <<< "${arquivos_blocos[$bloco]}"
-            arquivos_todos+=("${files_bloco[@]}")
-        done
+
+        # Coleta todos os arquivos (unindo de blocos e argumentos soltos)
+        if [ -n "$is_zsh" ]; then
+            for bloco in "${(@k)arquivos_blocos}"; do
+                IFS=$'\00' read -r -A files_bloco <<< "${arquivos_blocos[$bloco]}"
+                arquivos_todos+=("${files_bloco[@]}")
+            done
+        else
+            for bloco in "${!arquivos_blocos[@]}"; do
+                # Nota: a leitura em bash é mais complexa devido ao separador de registro \036
+                local files_bloco_str="${arquivos_blocos[$bloco]}"
+                while IFS=$'\036' read -r -a files_bloco; do
+                    arquivos_todos+=("${files_bloco[@]}")
+                done <<< "$files_bloco_str"
+            done
+        fi
+        arquivos_todos+=("${outros_arquivos[@]}")
     fi
-    arquivos_todos+=("${outros_arquivos[@]}")
 
-    # Verificação de arquivos
+    # ====================================================
+    # LÓGICA 3: Processamento JSON e Saída
+    # ====================================================
+
+    # Verificação final de arquivos
     if (( ${#arquivos_todos[@]} == 0 )); then
-        echo -e "\n\033[1;31m❌ Nenhum arquivo válido encontrado!\033[0m" >&2
+        echo -e "\n\033[1;31m❌ Nenhum arquivo válido para conversão encontrado!\\033[0m" >&2
         return 1
     fi
 
-    # Processamento JSON
     local json_output=() temp_file=$(mktemp)
 
     for file in "${arquivos_todos[@]}"; do
+        # Evita processar arquivos binários (grep -Iq: ignora binários para 'quick' check)
         if grep -Iq . "$file" 2>/dev/null; then
+            # Usa jq para ler, converter para string crua (Rs) e criar o objeto JSON
             if content=$(jq -Rs --arg path "$file" '{path: $path, content: .}' < "$file" 2>/dev/null); then
                 json_output+=("$content")
             else
-                echo -e "\033[33m⚠️ Erro ao processar: $file\033[0m" >&2
+                echo -e "\033[33m⚠️ Erro ao processar: $file (Verifique a codificação/permissões)\033[0m" >&2
             fi
         else
             echo -e "\033[33m⚠️ Ignorando binário: $file\033[0m" >&2
         fi
     done
 
+        
     # Saída final
     if (( ${#json_output[@]} > 0 )); then
+        # Junta todos os objetos JSON em um único array
         printf '%s\n' "${json_output[@]}" | jq -s '.' > "$temp_file"
-        xclip -sel c < "$temp_file" 2>/dev/null || echo -e "\033[33m⚠️ xclip não encontrado. Cole manualmente do arquivo temporário\033[0m"
+        
+        # Copia para a área de transferência
+        xclip -sel c < "$temp_file" 2>/dev/null || echo -e "\033[33m⚠️ xclip não encontrado. O JSON foi salvo em: $temp_file\033[0m" >&2
 
         echo -e "\n\033[1;34m📦 Resultados Agrupados:\033[0m"
 
-        # Listar blocos de acordo com o shell
-        if [ -n "$is_zsh" ]; then
-            for bloco in "${(@k)arquivos_blocos}"; do
-                IFS=$'\0' read -r -A files_bloco <<< "${arquivos_blocos[$bloco]}"
-                echo -e "\n\033[1;32m● Bloco [$bloco] (${#files_bloco[@]} arquivos):\033[0m"
-                printf '%s\n' "${files_bloco[@]}"
-            done
+        # ==========================================================
+        # TRECHO MODIFICADO: Exibe os arquivos processados
+        # ==========================================================
+        if [[ "$goto_processamento_json" == "false" ]]; then
+            # Lógica original: Listar arquivos por bloco (se vier de argumentos)
+            if [ -n "$is_zsh" ]; then
+                for bloco in "${(@k)arquivos_blocos}"; do
+                    IFS=$'\00' read -r -A files_bloco <<< "${arquivos_blocos[$bloco]}"
+                    echo -e "\n\033[1;32m● Bloco [$bloco] (${#files_bloco[@]} arquivos):\\033[0m"
+                    printf '%s\n' "${files_bloco[@]}"
+                done
+            else
+                for bloco in "${!arquivos_blocos[@]}"; do
+                    local files_bloco_str="${arquivos_blocos[$bloco]}"
+                    local count_files_bloco
+                    count_files_bloco=$(grep -c $'\036' <<< "$files_bloco_str")
+                    echo -e "\n\033[1;32m● Bloco [$bloco] ($((count_files_bloco + 1)) arquivos):\\033[0m"
+                    printf '%s\n' "${files_bloco_str//$'\036'/$'\n'}"
+                done
+            fi
+            
+            if (( ${#outros_arquivos[@]} > 0 )); then
+                echo -e "\n\033[1;32m● Outros Arquivos (${#outros_arquivos[@]}):\\033[0m"
+                printf '%s\n' "${outros_arquivos[@]}"
+            fi
         else
-            for bloco in "${!arquivos_blocos[@]}"; do
-                IFS=$'\0' read -r -a files_bloco <<< "${arquivos_blocos[$bloco]}"
-                echo -e "\n\033[1;32m● Bloco [$bloco] (${#files_bloco[@]} arquivos):\033[0m"
-                printf '%s\n' "${files_bloco[@]}"
-            done
+            # Lógica NOVA: Saída detalhada para o pipe (STDIN)
+            echo -e "\n\033[1;32m● Arquivos Recebidos e Processados via Pipe (${#arquivos_todos[@]}):\\033[0m"
+            printf '%s\n' "${arquivos_todos[@]}"
         fi
+        # ==========================================================
 
-        if (( ${#outros_arquivos[@]} > 0 )); then
-            echo -e "\n\033[1;32m● Outros Arquivos (${#outros_arquivos[@]}):\033[0m"
-            printf '%s\n' "${outros_arquivos[@]}"
-        fi
-
-        echo -e "\n\033[1;32m✅ Total de ${#json_output[@]} arquivo(s) convertidos para JSON!\033[0m"
-        echo -e "\033[1;36m📋 JSON copiado para área de transferência\033[0m"
+        echo -e "\n\033[1;32m✅ Total de ${#json_output[@]} arquivo(s) convertidos para JSON!\\033[0m"
+        echo -e "\033[1;36m📋 JSON copiado para área de transferência\\033[0m"
     else
-        echo -e "\033[1;31m❌ Nenhum arquivo válido para conversão!\033[0m" >&2
+        echo -e "\033[1;31m❌ Nenhum arquivo válido para conversão resultou em JSON!\\033[0m" >&2
         return 1
     fi
 
