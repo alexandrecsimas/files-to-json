@@ -1,3 +1,5 @@
+#!/bin/bash
+
 function f2j() {
     # Identificar shell
     if [ -n "$ZSH_VERSION" ]; then
@@ -34,7 +36,7 @@ function f2j() {
         [infra]="Makefile Vagrantfile ansible/ monitoring/ nginx.conf apache2.conf postgresql.conf redis.conf ssl/ vault/"
         [ignorados]="storage/logs/ storage/framework/ vendor/ node_modules/ .git/ .idea/ *.log *.tmp *.swp"
         [docker]="docker/ ./docker-compose.yml ./docker-compose.yaml ./compose.yml ./compose.yaml docker-compose.*.yml docker-compose.*.yaml "
-        [all]="."
+        # [all]="." # REMOVIDO
     )
 
     typeset -A arquivos_blocos=()
@@ -250,4 +252,23 @@ function f2j() {
 
 function json() {
     f2j "$@"
+}
+
+function f2jt() {
+    # 1. Verificar dependência do tree
+    if ! command -v tree &> /dev/null; then
+        echo -e "\033[1;31m❌ Erro: tree não está instalado!\033[0m" >&2
+        echo "Instale com: sudo apt install tree / sudo dnf install tree / sudo pacman -S tree" >&2
+        return 1
+    fi
+
+    echo -e "\033[36m🌀 Executando 'tree' para coletar e converter arquivos para JSON...\\033[0m" >&2
+
+    # 2. Executa a sequência de comandos e envia para a função f2j
+    # Note que a chamada é para a função f2j, não para o script.
+    tree -if --prune --noreport --gitignore | grep -v "/$" | f2j "$@"
+
+    if [ $? -ne 0 ]; then
+        return 1
+    fi
 }
