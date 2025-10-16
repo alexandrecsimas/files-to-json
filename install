@@ -18,17 +18,29 @@ if [ ! -f "$config_file" ]; then
     touch "$config_file"
 fi
 
-## 📌 Passo 3: Gerar caminho absoluto do f2j
-script_path="$(pwd)/f2j"
+## 📌 Passo 3: Gerar caminho absoluto do diretório do script
+script_dir="$(pwd)"
 
-## 📌 Passo 4: Verificar se o source já está configurado (qualquer caminho para f2j)
-if grep -q "source .*f2j" "$config_file"; then
-    echo "☑️  A função já está configurada em $config_file"
-    echo "   Nada a fazer. Tudo atualizado! 🚀"
+## 📌 Passo 4: Configurar o PATH
+# A variável script_dir é adicionada ao PATH para que f2j e f2jt sejam executáveis.
+path_line="export PATH=\"\$PATH:$script_dir\""
+
+# Verifica se o diretório JÁ está no PATH para evitar duplicação
+if grep -q "$script_dir" "$config_file"; then
+    echo "☑️  O diretório $script_dir já está no PATH."
 else
-    echo "🔧 Adicionando fonte do script ao $config_file"
-    echo -e "\n# Função files-to-json (f2j - adicionado automaticamente)" >> "$config_file"
-    echo "source $script_path" >> "$config_file"
-    echo "✅ Configuração atualizada! Por favor reinicie o terminal ou execute:"
-    echo "   source $config_file"
+    echo "🔧 Adicionando $script_dir ao PATH em $config_file"
+    echo -e "\n# Configuração de comandos f2j e f2jt (adicionado automaticamente)" >> "$config_file"
+    echo "$path_line" >> "$config_file"
 fi
+
+## 📌 Passo 5: Mensagem final e permissões
+
+# Garante que os scripts sejam executáveis
+chmod +x f2j 2>/dev/null
+chmod +x f2jt 2>/dev/null
+
+echo "✅ Instalação concluída!"
+echo "    Os comandos 'f2j', 'json' (alias) e 'f2jt' (atalho tree) estão prontos para uso."
+echo "Para ativar imediatamente, execute:"
+echo "    source $config_file"
